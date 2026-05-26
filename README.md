@@ -13,6 +13,7 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 - If `/workspace/ComfyUI` already exists, the template starts it as-is by default.
 - LTX custom nodes are updated only when `UPDATE_ON_BOOT=true` or when running `/update_ltx.sh`.
 - Python requirements are installed for first bootstrap, explicit updates, or when `INSTALL_REQUIREMENTS=true`.
+- Fast boot still performs a tiny dependency sanity check. If core ComfyUI, ComfyUI Manager, or LTX runtime packages are missing, it installs only what is needed instead of starting a broken server.
 - A post-boot validation checks the critical LTX node classes through `/object_info`.
 
 ## Important Environment Variables
@@ -22,10 +23,10 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 | `COMFYUI_REF` | `v0.22.2` | Git ref/tag/branch for ComfyUI. |
 | `UPDATE_ON_BOOT` | `false` | Update ComfyUI and managed custom nodes before launch. |
 | `INSTALL_REQUIREMENTS` | `auto` | Install requirements on first bootstrap or explicit update. Use `true` to force, `false` to skip. |
-| `RUNTIME_FIXES_ON_BOOT` | `auto` | Install small runtime fix packages on first bootstrap or explicit update. |
+| `RUNTIME_FIXES_ON_BOOT` | `auto` | Install small runtime fix packages on first bootstrap, explicit update, or when the LTX dependency sanity check fails. |
 | `VALIDATE_LTX_NODES` | `true` | Check critical node availability after startup. |
 | `STRICT_LTX_VALIDATION` | `false` | Fail the pod when validation is missing a critical LTX node. |
-| `ENABLE_MANAGER` | `false` | Add `--enable-manager` to ComfyUI launch. |
+| `ENABLE_MANAGER` | `true` | Add `--enable-manager` to ComfyUI launch. |
 | `USE_SAGE_ATTENTION` | `true` | Add `--use-sage-attention` when the package imports correctly. |
 | `COMFYUI_EXTRA_ARGS` | empty | Extra args appended to ComfyUI. |
 | `COMFYUI_START_TIMEOUT` | `600` | Seconds to wait for ComfyUI before treating startup as failed. |

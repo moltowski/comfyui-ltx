@@ -14,7 +14,7 @@ INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-auto}"
 RUNTIME_FIXES_ON_BOOT="${RUNTIME_FIXES_ON_BOOT:-auto}"
 VALIDATE_LTX_NODES="${VALIDATE_LTX_NODES:-true}"
 STRICT_LTX_VALIDATION="${STRICT_LTX_VALIDATION:-false}"
-ENABLE_MANAGER="${ENABLE_MANAGER:-false}"
+ENABLE_MANAGER="${ENABLE_MANAGER:-true}"
 USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-true}"
 COMFYUI_EXTRA_ARGS="${COMFYUI_EXTRA_ARGS:-}"
 MAINTENANCE_ONLY="${MAINTENANCE_ONLY:-false}"
@@ -90,16 +90,46 @@ should_install_requirements() {
   esac
 }
 
+comfy_core_dependencies_available() {
+  "$PY" - <<'PY' >/dev/null 2>&1
+mods = ["alembic", "sqlalchemy", "comfy_aimdo", "blake3"]
+for mod in mods:
+    __import__(mod)
+PY
+}
+
+ltx_runtime_dependencies_available() {
+  "$PY" - <<'PY' >/dev/null 2>&1
+mods = [
+    "rotary_embedding_torch",
+    "reportlab",
+    "wget",
+    "skimage",
+    "ollama",
+    "mediapipe",
+    "color_matcher",
+    "matplotlib",
+    "mss",
+    "cv2",
+    "comfyui_manager",
+    "git",
+]
+for mod in mods:
+    __import__(mod)
+from kornia.geometry.transform.pyramid import pad  # noqa: F401
+PY
+}
+
 should_run_runtime_fixes() {
   case "$RUNTIME_FIXES_ON_BOOT" in
     true|TRUE|1|yes|YES|y|Y) return 0 ;;
     false|FALSE|0|no|NO|n|N) return 1 ;;
     auto|AUTO|"")
-      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS"
+      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS" || ! ltx_runtime_dependencies_available
       ;;
     *)
       log "Unknown RUNTIME_FIXES_ON_BOOT=$RUNTIME_FIXES_ON_BOOT; treating as auto."
-      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS"
+      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS" || ! ltx_runtime_dependencies_available
       ;;
   esac
 }
@@ -108,8 +138,12 @@ install_requirements_if_present() {
   local dir="$1"
   local force="${2:-false}"
   if ! should_install_requirements "$force"; then
-    log "Skipping requirements for $dir"
-    return 0
+    if [ "$dir" = "$COMFY" ] && ! comfy_core_dependencies_available; then
+      log "ComfyUI core dependencies missing; installing requirements for $dir"
+    else
+      log "Skipping requirements for $dir"
+      return 0
+    fi
   fi
   if [ -f "$dir/requirements.txt" ]; then
     run_pip_install -r "$dir/requirements.txt"
@@ -206,12 +240,14 @@ install_runtime_fixes() {
   fi
 
   log "Installing LTX runtime dependency fixes"
-  run_pip_install sageattention reportlab rotary-embedding-torch || true
+  run_pip_install sageattention reportlab rotary-embedding-torch "kornia==0.7.3" || true
   run_pip_install wget scikit-image ollama || true
   run_pip_install mediapipe || true
+  run_pip_install color-matcher matplotlib mss opencv-python-headless || true
+  run_pip_install --pre comfyui-manager GitPython || true
 
   "$PY" - <<'PY'
-mods = ["comfy_aimdo.vram_buffer", "rotary_embedding_torch"]
+mods = ["comfy_aimdo.vram_buffer", "rotary_embedding_torch", "kornia", "comfyui_manager", "git"]
 for mod in mods:
     try:
         __import__(mod)

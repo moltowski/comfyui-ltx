@@ -27,7 +27,18 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging && \
     pip install --no-cache-dir \
         jupyterlab jupyterlab-lsp jupyter-server jupyter-server-terminals \
         ipykernel jupyterlab_code_formatter \
-        opencv-python pyyaml requests tqdm huggingface_hub gdown triton
+        opencv-python pyyaml requests tqdm huggingface_hub gdown triton \
+        comfyui-frontend-package==1.43.18 \
+        comfyui-workflow-templates==0.9.82 \
+        comfyui-embedded-docs==0.5.0 \
+        torchsde einops "transformers[timm]>=4.50.0" tokenizers sentencepiece \
+        safetensors "aiohttp>=3.11.8" "yarl>=1.18.0" scipy alembic \
+        "SQLAlchemy>=2.0.0" "av>=14.2.0" "comfy-kitchen>=0.2.8" \
+        comfy-aimdo==0.3.0 simpleeval blake3 "kornia==0.7.3" spandrel \
+        "pydantic~=2.0" "pydantic-settings~=2.0" PyOpenGL glfw \
+        sageattention reportlab rotary-embedding-torch wget scikit-image ollama \
+        mediapipe color-matcher matplotlib mss opencv-python-headless \
+        comfyui-manager GitPython
 
 COPY src/start_script.sh /start_script.sh
 COPY src/start.sh /start.sh
