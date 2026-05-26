@@ -21,9 +21,14 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 | `UPDATE_ON_BOOT` | `true` | Update ComfyUI and managed custom nodes before launch. |
 | `INSTALL_REQUIREMENTS` | `true` | Install `requirements.txt` for ComfyUI/custom nodes. |
 | `VALIDATE_LTX_NODES` | `true` | Check critical node availability after startup. |
+| `STRICT_LTX_VALIDATION` | `false` | Fail the pod when validation is missing a critical LTX node. |
 | `ENABLE_MANAGER` | `false` | Add `--enable-manager` to ComfyUI launch. |
 | `USE_SAGE_ATTENTION` | `true` | Add `--use-sage-attention` when the package imports correctly. |
 | `COMFYUI_EXTRA_ARGS` | empty | Extra args appended to ComfyUI. |
+| `COMFYUI_START_TIMEOUT` | `600` | Seconds to wait for ComfyUI before treating startup as failed. |
+| `PIP_DEFAULT_TIMEOUT` | `60` | Default pip network timeout. |
+| `RETRY_ATTEMPTS` | `5` | Retry count for git and pip network operations. |
+| `RETRY_DELAY` | `8` | Seconds between git/pip retries. |
 
 ## Docker
 

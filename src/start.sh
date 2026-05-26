@@ -3,6 +3,7 @@ set -euo pipefail
 
 PY="${PYTHON_BIN:-/opt/venv/bin/python3}"
 PIP="$PY -m pip"
+export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-60}"
 NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
 COMFY="$NETWORK_VOLUME/ComfyUI"
 CUSTOM_NODES="$COMFY/custom_nodes"
@@ -10,6 +11,7 @@ COMFYUI_REF="${COMFYUI_REF:-v0.22.2}"
 UPDATE_ON_BOOT="${UPDATE_ON_BOOT:-true}"
 INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-true}"
 VALIDATE_LTX_NODES="${VALIDATE_LTX_NODES:-true}"
+STRICT_LTX_VALIDATION="${STRICT_LTX_VALIDATION:-false}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-false}"
 USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-true}"
 COMFYUI_EXTRA_ARGS="${COMFYUI_EXTRA_ARGS:-}"
@@ -25,6 +27,20 @@ log() {
   echo "[$(date -Iseconds)] $*"
 }
 
+retry() {
+  local attempts="${RETRY_ATTEMPTS:-5}"
+  local delay="${RETRY_DELAY:-8}"
+  local n=1
+  until "$@"; do
+    if [ "$n" -ge "$attempts" ]; then
+      return 1
+    fi
+    log "Command failed, retrying in ${delay}s ($n/$attempts): $*"
+    sleep "$delay"
+    n=$((n + 1))
+  done
+}
+
 is_true() {
   case "${1:-}" in
     true|TRUE|1|yes|YES|y|Y) return 0 ;;
@@ -35,7 +51,7 @@ is_true() {
 run_pip_install() {
   if is_true "$INSTALL_REQUIREMENTS"; then
     log "pip install $*"
-    $PIP install "$@"
+    retry $PIP install "$@"
   fi
 }
 
@@ -53,10 +69,10 @@ install_requirements_if_present() {
 checkout_ref() {
   local dir="$1"
   local ref="$2"
-  git -C "$dir" fetch origin --tags --prune
+  retry git -C "$dir" fetch origin --tags --prune
   if git -C "$dir" rev-parse --verify --quiet "origin/$ref" >/dev/null; then
     git -C "$dir" switch "$ref" 2>/dev/null || git -C "$dir" switch -c "$ref" "origin/$ref"
-    git -C "$dir" pull --ff-only || true
+    retry git -C "$dir" pull --ff-only || true
   else
     git -C "$dir" switch --detach "$ref"
   fi
@@ -69,7 +85,7 @@ ensure_comfyui() {
       return 1
     fi
     log "Cloning ComfyUI into $COMFY"
-    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY"
+    retry git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY"
   fi
 
   if is_true "$UPDATE_ON_BOOT"; then
@@ -94,7 +110,7 @@ ensure_custom_node() {
       return 0
     fi
     log "Cloning $folder"
-    git clone "$url" "$dir" || {
+    retry git clone "$url" "$dir" || {
       if [ "$required" = "true" ]; then
         log "Required node clone failed: $folder"
         return 1
@@ -107,11 +123,7 @@ ensure_custom_node() {
   if is_true "$UPDATE_ON_BOOT"; then
     log "Updating $folder to $ref"
     checkout_ref "$dir" "$ref" || {
-      if [ "$required" = "true" ]; then
-        log "Required node update failed: $folder"
-        return 1
-      fi
-      log "Optional node update failed: $folder"
+      log "Node update failed for $folder; continuing with existing checkout."
     }
   fi
 
@@ -131,6 +143,8 @@ ensure_custom_nodes() {
 install_runtime_fixes() {
   log "Installing LTX runtime dependency fixes"
   run_pip_install sageattention reportlab rotary-embedding-torch || true
+  run_pip_install wget scikit-image ollama || true
+  run_pip_install mediapipe || true
 
   "$PY" - <<'PY'
 mods = ["comfy_aimdo.vram_buffer", "rotary_embedding_torch"]
@@ -201,7 +215,7 @@ start_comfyui() {
 wait_for_comfyui() {
   local url="http://127.0.0.1:$COMFYUI_PORT"
   local waited=0
-  local max_wait="${COMFYUI_START_TIMEOUT:-90}"
+  local max_wait="${COMFYUI_START_TIMEOUT:-600}"
 
   until curl --silent --fail "$url" --output /dev/null; do
     if [ "$waited" -ge "$max_wait" ]; then
@@ -235,7 +249,10 @@ main() {
     COMFYUI_URL="http://127.0.0.1:$COMFYUI_PORT" /validate_ltx.sh || {
       log "LTX node validation failed. Check $LOG_FILE"
       tail -120 "$LOG_FILE" || true
-      return 1
+      if is_true "$STRICT_LTX_VALIDATION"; then
+        return 1
+      fi
+      log "Continuing because STRICT_LTX_VALIDATION is false."
     }
   fi
 
