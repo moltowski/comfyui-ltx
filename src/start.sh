@@ -9,18 +9,21 @@ NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
 COMFY="$NETWORK_VOLUME/ComfyUI"
 CUSTOM_NODES="$COMFY/custom_nodes"
 COMFYUI_REF="${COMFYUI_REF:-v0.22.2}"
-UPDATE_ON_BOOT="${UPDATE_ON_BOOT:-true}"
-INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-true}"
+UPDATE_ON_BOOT="${UPDATE_ON_BOOT:-false}"
+INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-auto}"
+RUNTIME_FIXES_ON_BOOT="${RUNTIME_FIXES_ON_BOOT:-auto}"
 VALIDATE_LTX_NODES="${VALIDATE_LTX_NODES:-true}"
 STRICT_LTX_VALIDATION="${STRICT_LTX_VALIDATION:-false}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-false}"
 USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-true}"
 COMFYUI_EXTRA_ARGS="${COMFYUI_EXTRA_ARGS:-}"
+MAINTENANCE_ONLY="${MAINTENANCE_ONLY:-false}"
 JUPYTER_PORT="${JUPYTER_PORT:-8888}"
 COMFYUI_PORT="${COMFYUI_PORT:-8188}"
 LOG_FILE="$NETWORK_VOLUME/comfyui.log"
 PID_FILE="$NETWORK_VOLUME/comfyui.pid"
 NODE_MANIFEST="${NODE_MANIFEST:-/custom_nodes.tsv}"
+BOOTSTRAPPED_COMFYUI=false
 
 mkdir -p "$NETWORK_VOLUME"
 
@@ -68,14 +71,46 @@ is_true() {
 }
 
 run_pip_install() {
-  if is_true "$INSTALL_REQUIREMENTS"; then
-    log "pip install $*"
-    retry $PIP install "$@"
-  fi
+  log "pip install $*"
+  retry $PIP install "$@"
+}
+
+should_install_requirements() {
+  local force="${1:-false}"
+  case "$INSTALL_REQUIREMENTS" in
+    true|TRUE|1|yes|YES|y|Y) return 0 ;;
+    false|FALSE|0|no|NO|n|N) return 1 ;;
+    auto|AUTO|"")
+      is_true "$force" || is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI"
+      ;;
+    *)
+      log "Unknown INSTALL_REQUIREMENTS=$INSTALL_REQUIREMENTS; treating as auto."
+      is_true "$force" || is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI"
+      ;;
+  esac
+}
+
+should_run_runtime_fixes() {
+  case "$RUNTIME_FIXES_ON_BOOT" in
+    true|TRUE|1|yes|YES|y|Y) return 0 ;;
+    false|FALSE|0|no|NO|n|N) return 1 ;;
+    auto|AUTO|"")
+      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS"
+      ;;
+    *)
+      log "Unknown RUNTIME_FIXES_ON_BOOT=$RUNTIME_FIXES_ON_BOOT; treating as auto."
+      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS"
+      ;;
+  esac
 }
 
 install_requirements_if_present() {
   local dir="$1"
+  local force="${2:-false}"
+  if ! should_install_requirements "$force"; then
+    log "Skipping requirements for $dir"
+    return 0
+  fi
   if [ -f "$dir/requirements.txt" ]; then
     run_pip_install -r "$dir/requirements.txt"
   fi
@@ -98,6 +133,7 @@ checkout_ref() {
 }
 
 ensure_comfyui() {
+  local cloned=false
   if [ ! -d "$COMFY/.git" ]; then
     if [ -d "$COMFY" ] && [ "$(find "$COMFY" -mindepth 1 -maxdepth 1 | wc -l)" -gt 0 ]; then
       log "Existing $COMFY is not a git checkout; leaving it untouched."
@@ -105,14 +141,16 @@ ensure_comfyui() {
     fi
     log "Cloning ComfyUI into $COMFY"
     run_git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY"
+    cloned=true
+    BOOTSTRAPPED_COMFYUI=true
   fi
 
-  if is_true "$UPDATE_ON_BOOT"; then
+  if is_true "$UPDATE_ON_BOOT" || is_true "$cloned"; then
     log "Checking out ComfyUI ref $COMFYUI_REF"
     checkout_ref "$COMFY" "$COMFYUI_REF"
   fi
 
-  install_requirements_if_present "$COMFY"
+  install_requirements_if_present "$COMFY" "$cloned"
 }
 
 ensure_custom_node() {
@@ -121,11 +159,12 @@ ensure_custom_node() {
   local ref="$3"
   local required="$4"
   local dir="$CUSTOM_NODES/$folder"
+  local cloned=false
 
   if [ ! -d "$dir/.git" ]; then
     if [ -d "$dir" ]; then
-      log "$folder exists but is not git-backed; installing requirements only."
-      install_requirements_if_present "$dir"
+      log "$folder exists but is not git-backed."
+      install_requirements_if_present "$dir" false
       return 0
     fi
     log "Cloning $folder"
@@ -137,16 +176,17 @@ ensure_custom_node() {
       log "Optional node clone failed: $folder"
       return 0
     }
+    cloned=true
   fi
 
-  if is_true "$UPDATE_ON_BOOT"; then
+  if is_true "$UPDATE_ON_BOOT" || is_true "$cloned"; then
     log "Updating $folder to $ref"
     checkout_ref "$dir" "$ref" || {
       log "Node update failed for $folder; continuing with existing checkout."
     }
   fi
 
-  install_requirements_if_present "$dir"
+  install_requirements_if_present "$dir" "$cloned"
 }
 
 ensure_custom_nodes() {
@@ -160,6 +200,11 @@ ensure_custom_nodes() {
 }
 
 install_runtime_fixes() {
+  if ! should_run_runtime_fixes; then
+    log "Skipping LTX runtime dependency fixes"
+    return 0
+  fi
+
   log "Installing LTX runtime dependency fixes"
   run_pip_install sageattention reportlab rotary-embedding-torch || true
   run_pip_install wget scikit-image ollama || true
@@ -168,8 +213,11 @@ install_runtime_fixes() {
   "$PY" - <<'PY'
 mods = ["comfy_aimdo.vram_buffer", "rotary_embedding_torch"]
 for mod in mods:
-    __import__(mod)
-    print(f"{mod}: OK")
+    try:
+        __import__(mod)
+        print(f"{mod}: OK")
+    except Exception as exc:
+        print(f"{mod}: unavailable ({exc})")
 PY
 }
 
@@ -254,12 +302,20 @@ main() {
   log "ComfyUI LTX template bootstrap"
   log "Network volume: $NETWORK_VOLUME"
   log "ComfyUI ref: $COMFYUI_REF"
+  log "Update on boot: $UPDATE_ON_BOOT"
+  log "Install requirements: $INSTALL_REQUIREMENTS"
 
-  start_jupyter
   ensure_comfyui
   ensure_custom_nodes
   install_runtime_fixes
   clean_non_nodes
+
+  if is_true "$MAINTENANCE_ONLY"; then
+    log "Maintenance complete"
+    exit 0
+  fi
+
+  start_jupyter
   stop_old_comfyui
   start_comfyui
   wait_for_comfyui

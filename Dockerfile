@@ -31,9 +31,10 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging && \
 
 COPY src/start_script.sh /start_script.sh
 COPY src/start.sh /start.sh
+COPY src/update_ltx.sh /update_ltx.sh
 COPY src/validate_ltx.sh /validate_ltx.sh
 COPY src/custom_nodes.tsv /custom_nodes.tsv
 
-RUN chmod +x /start_script.sh /start.sh /validate_ltx.sh
+RUN chmod +x /start_script.sh /start.sh /update_ltx.sh /validate_ltx.sh
 
 CMD ["/start_script.sh"]
