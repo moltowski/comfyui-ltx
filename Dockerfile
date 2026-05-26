@@ -2,6 +2,7 @@ FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_PREFER_BINARY=1 \
+    PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
     CMAKE_BUILD_PARALLEL_LEVEL=8
 
@@ -17,11 +18,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip setuptools wheel packaging && \
-    pip install --pre torch torchvision torchaudio \
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging && \
+    pip install --no-cache-dir --pre \
+        torch==2.12.0.dev20260407+cu128 \
+        torchvision==0.27.0.dev20260407+cu128 \
+        torchaudio==2.11.0.dev20260407+cu128 \
         --index-url https://download.pytorch.org/whl/nightly/cu128 && \
-    pip install \
+    pip install --no-cache-dir \
         jupyterlab jupyterlab-lsp jupyter-server jupyter-server-terminals \
         ipykernel jupyterlab_code_formatter \
         opencv-python pyyaml requests tqdm huggingface_hub gdown triton
