@@ -4,6 +4,7 @@ set -euo pipefail
 PY="${PYTHON_BIN:-/opt/venv/bin/python3}"
 PIP="$PY -m pip"
 export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-60}"
+export GIT_TERMINAL_PROMPT=0
 NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
 COMFY="$NETWORK_VOLUME/ComfyUI"
 CUSTOM_NODES="$COMFY/custom_nodes"
@@ -41,6 +42,24 @@ retry() {
   done
 }
 
+run_with_timeout() {
+  local seconds="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  else
+    "$@"
+  fi
+}
+
+run_git() {
+  retry run_with_timeout "${GIT_TIMEOUT:-180}" \
+    git \
+    -c "http.lowSpeedLimit=${GIT_HTTP_LOW_SPEED_LIMIT:-1000}" \
+    -c "http.lowSpeedTime=${GIT_HTTP_LOW_SPEED_TIME:-30}" \
+    "$@"
+}
+
 is_true() {
   case "${1:-}" in
     true|TRUE|1|yes|YES|y|Y) return 0 ;;
@@ -69,10 +88,10 @@ install_requirements_if_present() {
 checkout_ref() {
   local dir="$1"
   local ref="$2"
-  retry git -C "$dir" fetch origin --tags --prune
+  run_git -C "$dir" fetch origin --tags --prune
   if git -C "$dir" rev-parse --verify --quiet "origin/$ref" >/dev/null; then
     git -C "$dir" switch "$ref" 2>/dev/null || git -C "$dir" switch -c "$ref" "origin/$ref"
-    retry git -C "$dir" pull --ff-only || true
+    run_git -C "$dir" pull --ff-only || true
   else
     git -C "$dir" switch --detach "$ref"
   fi
@@ -85,7 +104,7 @@ ensure_comfyui() {
       return 1
     fi
     log "Cloning ComfyUI into $COMFY"
-    retry git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY"
+    run_git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY"
   fi
 
   if is_true "$UPDATE_ON_BOOT"; then
@@ -110,7 +129,7 @@ ensure_custom_node() {
       return 0
     fi
     log "Cloning $folder"
-    retry git clone "$url" "$dir" || {
+    run_git clone "$url" "$dir" || {
       if [ "$required" = "true" ]; then
         log "Required node clone failed: $folder"
         return 1

@@ -29,6 +29,9 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 | `PIP_DEFAULT_TIMEOUT` | `60` | Default pip network timeout. |
 | `RETRY_ATTEMPTS` | `5` | Retry count for git and pip network operations. |
 | `RETRY_DELAY` | `8` | Seconds between git/pip retries. |
+| `GIT_TIMEOUT` | `180` | Max seconds for one git network command before retrying. |
+| `GIT_HTTP_LOW_SPEED_TIME` | `30` | Abort a slow git HTTP transfer after this many seconds. |
+| `GIT_HTTP_LOW_SPEED_LIMIT` | `1000` | Bytes/second threshold for git low-speed detection. |
 
 ## Docker
 
