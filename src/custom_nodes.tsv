@@ -1,0 +1,11 @@
+# folder	url	ref	required
+ComfyUI-KJNodes	https://github.com/kijai/ComfyUI-KJNodes.git	main	true
+ComfyUI-LTXVideo	https://github.com/Lightricks/ComfyUI-LTXVideo.git	master	true
+WhatDreamsCost-ComfyUI	https://github.com/WhatDreamscost/WhatDreamsCost-ComfyUI.git	main	true
+ComfyUI-Manager	https://github.com/ltdrdata/ComfyUI-Manager.git	main	true
+comfyui-videohelpersuite	https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git	main	true
+ComfyUI-GGUF	https://github.com/city96/ComfyUI-GGUF.git	main	true
+ComfyUI-MelBandRoFormer	https://github.com/kijai/ComfyUI-MelBandRoFormer.git	main	true
+Listhelper	https://github.com/dseditor/ComfyUI-ListHelper.git	main	true
+RES4LYF	https://github.com/ClownsharkBatwing/RES4LYF.git	main	false
+Comfyui_TTP_Toolset	https://github.com/TTPlanetPig/Comfyui_TTP_Toolset.git	main	false
