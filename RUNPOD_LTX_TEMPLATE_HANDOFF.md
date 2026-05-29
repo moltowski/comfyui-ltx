@@ -131,6 +131,7 @@ RUNTIME_FIXES_ON_BOOT=auto
 VALIDATE_LTX_NODES=true
 STRICT_LTX_VALIDATION=false
 ENABLE_MANAGER=true
+ENABLE_MANAGER_LEGACY_UI=true
 USE_SAGE_ATTENTION=true
 COMFYUI_PORT=8188
 JUPYTER_PORT=8888
@@ -295,6 +296,7 @@ Problemes rencontres et corriges:
 - `rotary_embedding_torch` manquant.
 - incompatibilites autour de `kornia`; version pinnee a `kornia==0.7.3`.
 - ComfyUI Manager absent ou non active; ajoute et lance avec `--enable-manager`.
+- Sur ComfyUI 0.22.x, `--enable-manager` active le backend Manager mais ne suffit pas toujours a afficher le menu. Le template ajoute donc aussi `--enable-manager-legacy-ui` via `ENABLE_MANAGER_LEGACY_UI=true`.
 
 ## RunPod template recommande
 
@@ -317,6 +319,7 @@ RUNTIME_FIXES_ON_BOOT=auto
 VALIDATE_LTX_NODES=true
 STRICT_LTX_VALIDATION=false
 ENABLE_MANAGER=true
+ENABLE_MANAGER_LEGACY_UI=true
 USE_SAGE_ATTENTION=true
 ```
 

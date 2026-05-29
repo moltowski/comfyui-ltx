@@ -15,6 +15,7 @@ RUNTIME_FIXES_ON_BOOT="${RUNTIME_FIXES_ON_BOOT:-auto}"
 VALIDATE_LTX_NODES="${VALIDATE_LTX_NODES:-true}"
 STRICT_LTX_VALIDATION="${STRICT_LTX_VALIDATION:-false}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-true}"
+ENABLE_MANAGER_LEGACY_UI="${ENABLE_MANAGER_LEGACY_UI:-true}"
 USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-true}"
 COMFYUI_EXTRA_ARGS="${COMFYUI_EXTRA_ARGS:-}"
 MAINTENANCE_ONLY="${MAINTENANCE_ONLY:-false}"
@@ -303,6 +304,9 @@ start_comfyui() {
   fi
   if is_true "$ENABLE_MANAGER"; then
     args+=(--enable-manager)
+    if is_true "$ENABLE_MANAGER_LEGACY_UI"; then
+      args+=(--enable-manager-legacy-ui)
+    fi
   fi
   if [ -n "$COMFYUI_EXTRA_ARGS" ]; then
     # shellcheck disable=SC2206

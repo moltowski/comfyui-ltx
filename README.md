@@ -27,6 +27,7 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 | `VALIDATE_LTX_NODES` | `true` | Check critical node availability after startup. |
 | `STRICT_LTX_VALIDATION` | `false` | Fail the pod when validation is missing a critical LTX node. |
 | `ENABLE_MANAGER` | `true` | Add `--enable-manager` to ComfyUI launch. |
+| `ENABLE_MANAGER_LEGACY_UI` | `true` | Add `--enable-manager-legacy-ui` so the visible Manager menu is exposed in current ComfyUI builds. |
 | `USE_SAGE_ATTENTION` | `true` | Add `--use-sage-attention` when the package imports correctly. |
 | `COMFYUI_EXTRA_ARGS` | empty | Extra args appended to ComfyUI. |
 | `COMFYUI_START_TIMEOUT` | `600` | Seconds to wait for ComfyUI before treating startup as failed. |
