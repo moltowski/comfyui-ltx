@@ -12,4 +12,9 @@ rgthree-comfy	https://github.com/rgthree/rgthree-comfy.git	main	false
 crt-nodes	https://github.com/PGCRT/CRT-Nodes.git	main	false
 ComfyUI-CameraForensicRealism	https://github.com/MONKEYFOREVER2/ComfyUI-CameraForensicRealism.git	master	false
 comfyui-quantum-spectral-nodes	https://github.com/MONKEYFOREVER2/comfyui-quantum-spectral-nodes.git	main	false
+comfyui_fill-nodes	https://github.com/filliptm/ComfyUI_Fill-Nodes.git	main	false
+ComfyUI-PromptRelay	https://github.com/kijai/ComfyUI-PromptRelay.git	main	false
+ComfyUI-K3NK-ComfyUI-Nodes	https://github.com/K3NK3/ComfyUI-K3NK-ComfyUI-Nodes.git	main	false
+ComfyUI_tinyterraNodes	https://github.com/TinyTerra/ComfyUI_tinyterraNodes.git	main	false
+comfyui-fofr-toolkit	https://github.com/fofr/comfyui-fofr-toolkit.git	main	false
 Comfyui_TTP_Toolset	https://github.com/TTPlanetPig/Comfyui_TTP_Toolset.git	main	false

@@ -216,6 +216,11 @@ rgthree-comfy
 crt-nodes
 ComfyUI-CameraForensicRealism
 comfyui-quantum-spectral-nodes
+comfyui_fill-nodes
+ComfyUI-PromptRelay
+ComfyUI-K3NK-ComfyUI-Nodes
+ComfyUI_tinyterraNodes
+comfyui-fofr-toolkit
 Comfyui_TTP_Toolset
 ```
 
