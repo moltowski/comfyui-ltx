@@ -114,6 +114,8 @@ mods = [
     "cv2",
     "comfyui_manager",
     "git",
+    "pywt",
+    "soundfile",
 ]
 for mod in mods:
     __import__(mod)
@@ -245,10 +247,11 @@ install_runtime_fixes() {
   run_pip_install wget scikit-image ollama || true
   run_pip_install mediapipe || true
   run_pip_install color-matcher matplotlib mss opencv-python-headless || true
+  run_pip_install PyWavelets soundfile ultralytics langdetect redis wand || true
   run_pip_install --pre comfyui-manager GitPython || true
 
   "$PY" - <<'PY'
-mods = ["comfy_aimdo.vram_buffer", "rotary_embedding_torch", "kornia", "comfyui_manager", "git"]
+mods = ["comfy_aimdo.vram_buffer", "rotary_embedding_torch", "kornia", "comfyui_manager", "git", "pywt", "soundfile"]
 for mod in mods:
     try:
         __import__(mod)

@@ -14,6 +14,7 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 - LTX custom nodes are updated only when `UPDATE_ON_BOOT=true` or when running `/update_ltx.sh`.
 - Python requirements are installed for first bootstrap, explicit updates, or when `INSTALL_REQUIREMENTS=true`.
 - Fast boot still performs a tiny dependency sanity check. If core ComfyUI, ComfyUI Manager, or LTX runtime packages are missing, it installs only what is needed instead of starting a broken server.
+- The managed optional nodes include the Z-Image workflow helpers used on the daily storage, such as RES4LYF, rgthree, CRT-Nodes, CameraForensicRealism, and quantum spectral nodes.
 - A post-boot validation checks the critical LTX node classes through `/object_info`.
 
 ## Important Environment Variables

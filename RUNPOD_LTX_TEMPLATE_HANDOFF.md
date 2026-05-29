@@ -99,11 +99,17 @@ color-matcher
 matplotlib
 mss
 opencv-python-headless
+PyWavelets
+soundfile
+ultralytics
+langdetect
+redis
+wand
 comfyui-manager
 GitPython
 ```
 
-Raison: plusieurs pods echouaient ou redemarraient avec des nodes manquants, notamment autour de ComfyUI core, LTXVideo, Manager et KJNodes.
+Raison: plusieurs pods echouaient ou redemarraient avec des nodes manquants, notamment autour de ComfyUI core, LTXVideo, Manager, KJNodes, RES4LYF et certains workflows Z-Image.
 
 ### start.sh
 
@@ -206,6 +212,10 @@ Nodes optionnels:
 
 ```text
 RES4LYF
+rgthree-comfy
+crt-nodes
+ComfyUI-CameraForensicRealism
+comfyui-quantum-spectral-nodes
 Comfyui_TTP_Toolset
 ```
 

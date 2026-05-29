@@ -8,4 +8,8 @@ ComfyUI-GGUF	https://github.com/city96/ComfyUI-GGUF.git	main	true
 ComfyUI-MelBandRoFormer	https://github.com/kijai/ComfyUI-MelBandRoFormer.git	main	true
 Listhelper	https://github.com/dseditor/ComfyUI-ListHelper.git	main	true
 RES4LYF	https://github.com/ClownsharkBatwing/RES4LYF.git	main	false
+rgthree-comfy	https://github.com/rgthree/rgthree-comfy.git	main	false
+crt-nodes	https://github.com/PGCRT/CRT-Nodes.git	main	false
+ComfyUI-CameraForensicRealism	https://github.com/MONKEYFOREVER2/ComfyUI-CameraForensicRealism.git	master	false
+comfyui-quantum-spectral-nodes	https://github.com/MONKEYFOREVER2/comfyui-quantum-spectral-nodes.git	main	false
 Comfyui_TTP_Toolset	https://github.com/TTPlanetPig/Comfyui_TTP_Toolset.git	main	false

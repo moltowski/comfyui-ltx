@@ -11,7 +11,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y --no-install-recommends \
         python3.12 python3.12-venv python3.12-dev python3-pip \
         build-essential gcc g++ ninja-build git git-lfs curl wget aria2 ffmpeg \
-        libgl1 libglib2.0-0 libgoogle-perftools4 ca-certificates vim && \
+        libgl1 libglib2.0-0 libgoogle-perftools4 ca-certificates vim \
+        imagemagick libmagickwand-dev && \
     ln -sf /usr/bin/python3.12 /usr/bin/python && \
     python3.12 -m venv /opt/venv && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -38,6 +39,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging && \
         "pydantic~=2.0" "pydantic-settings~=2.0" PyOpenGL glfw \
         sageattention reportlab rotary-embedding-torch wget scikit-image ollama \
         mediapipe color-matcher matplotlib mss opencv-python-headless \
+        PyWavelets soundfile ultralytics langdetect redis wand \
         comfyui-manager GitPython
 
 COPY src/start_script.sh /start_script.sh
