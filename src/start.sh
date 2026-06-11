@@ -26,6 +26,17 @@ PID_FILE="$NETWORK_VOLUME/comfyui.pid"
 NODE_MANIFEST="${NODE_MANIFEST:-/custom_nodes.tsv}"
 BOOTSTRAPPED_COMFYUI=false
 
+# venv persistence: keep installed pip packages on the network volume so that
+# custom-node dependencies survive pod restarts (the baked /opt/venv lives on the
+# ephemeral overlay filesystem and is wiped every time the pod is recreated).
+PERSIST_VENV="${PERSIST_VENV:-true}"
+VENV_PERSIST_DIR="${VENV_PERSIST_DIR:-$NETWORK_VOLUME/venv}"
+BAKED_VENV="${BAKED_VENV:-/opt/venv}"
+VENV_STAMP_SRC="${VENV_STAMP_SRC:-/opt/venv.stamp}"
+REBUILD_VENV="${REBUILD_VENV:-false}"
+HEAL_NODE_DEPS="${HEAL_NODE_DEPS:-true}"
+VENV_BOOTSTRAPPED=false
+
 mkdir -p "$NETWORK_VOLUME"
 
 log() {
@@ -341,16 +352,105 @@ wait_for_comfyui() {
   log "ComfyUI is up"
 }
 
+persist_venv() {
+  if ! is_true "$PERSIST_VENV"; then
+    log "venv persistence disabled (PERSIST_VENV=$PERSIST_VENV)"
+    return 0
+  fi
+
+  # On a fresh pod the baked venv is a real directory. If it is already a symlink
+  # we have nothing to do (e.g. persist_venv ran twice in the same boot).
+  if [ -L "$BAKED_VENV" ]; then
+    log "venv already symlinked to $(readlink -f "$BAKED_VENV")"
+    return 0
+  fi
+
+  local stamp_dst="$VENV_PERSIST_DIR/.image_stamp"
+  local want_copy=false
+  if [ ! -x "$VENV_PERSIST_DIR/bin/python3" ]; then
+    log "No persisted venv at $VENV_PERSIST_DIR; copying baked venv (first boot, slow over network storage)"
+    want_copy=true
+  elif is_true "$REBUILD_VENV"; then
+    log "REBUILD_VENV=true; refreshing persisted venv from image"
+    want_copy=true
+  elif [ -f "$VENV_STAMP_SRC" ] && [ -f "$stamp_dst" ] && ! cmp -s "$VENV_STAMP_SRC" "$stamp_dst"; then
+    log "Image venv stamp changed ($(cat "$stamp_dst") -> $(cat "$VENV_STAMP_SRC")); refreshing persisted venv"
+    want_copy=true
+  fi
+
+  if is_true "$want_copy"; then
+    rm -rf "$VENV_PERSIST_DIR.partial"
+    log "Copying $BAKED_VENV -> $VENV_PERSIST_DIR (this can take several minutes the first time)"
+    cp -a "$BAKED_VENV" "$VENV_PERSIST_DIR.partial"
+    if [ -f "$VENV_STAMP_SRC" ]; then
+      cp -f "$VENV_STAMP_SRC" "$VENV_PERSIST_DIR.partial/.image_stamp"
+    fi
+    rm -rf "$VENV_PERSIST_DIR"
+    mv "$VENV_PERSIST_DIR.partial" "$VENV_PERSIST_DIR"
+    VENV_BOOTSTRAPPED=true
+    log "Persisted venv ready at $VENV_PERSIST_DIR"
+  else
+    log "Reusing persisted venv at $VENV_PERSIST_DIR"
+  fi
+
+  # Replace the ephemeral baked venv with a symlink to the persisted one so that
+  # every hard-coded /opt/venv path (shebangs, pip, jupyter, ComfyUI Manager)
+  # resolves to the network volume and pip installs persist across restarts.
+  rm -rf "$BAKED_VENV"
+  ln -s "$VENV_PERSIST_DIR" "$BAKED_VENV"
+  log "Symlinked $BAKED_VENV -> $VENV_PERSIST_DIR; pip installs now persist across restarts"
+}
+
+heal_node_deps() {
+  # One-time only: when the venv was just bootstrapped from the image it lacks the
+  # Python deps of nodes the user installed on storage (outside custom_nodes.tsv).
+  # Install every present node's requirements.txt once; afterwards they persist in
+  # the storage venv, so this never runs again on subsequent boots.
+  if ! is_true "$HEAL_NODE_DEPS"; then
+    log "Node dependency heal disabled (HEAL_NODE_DEPS=$HEAL_NODE_DEPS)"
+    return 0
+  fi
+  if ! is_true "$VENV_BOOTSTRAPPED"; then
+    log "venv already populated; skipping one-time node dependency heal"
+    return 0
+  fi
+  if [ ! -d "$CUSTOM_NODES" ]; then
+    return 0
+  fi
+
+  # Pin the critical stack so node requirements can't downgrade/break torch & numpy.
+  local constraints="/tmp/heal-constraints.txt"
+  "$PY" -m pip freeze 2>/dev/null \
+    | grep -iE '^(torch|torchvision|torchaudio|numpy)==' > "$constraints" || true
+
+  log "Freshly bootstrapped venv: healing node dependencies (one-time pass over all custom_nodes)"
+  local dir name req
+  for dir in "$CUSTOM_NODES"/*/; do
+    [ -d "$dir" ] || continue
+    name="$(basename "$dir")"
+    req="${dir%/}/requirements.txt"
+    if [ -f "$req" ]; then
+      log "Heal deps: $name"
+      $PIP install -c "$constraints" -r "$req" \
+        || log "Heal deps failed for $name (continuing)"
+    fi
+  done
+  log "One-time node dependency heal complete"
+}
+
 main() {
   log "ComfyUI LTX template bootstrap"
   log "Network volume: $NETWORK_VOLUME"
   log "ComfyUI ref: $COMFYUI_REF"
   log "Update on boot: $UPDATE_ON_BOOT"
   log "Install requirements: $INSTALL_REQUIREMENTS"
+  log "Persist venv: $PERSIST_VENV ($VENV_PERSIST_DIR)"
 
+  persist_venv
   ensure_comfyui
   ensure_custom_nodes
   install_runtime_fixes
+  heal_node_deps
   clean_non_nodes
 
   if is_true "$MAINTENANCE_ONLY"; then

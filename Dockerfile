@@ -42,6 +42,12 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging && \
         PyWavelets soundfile ultralytics langdetect redis wand \
         comfyui-manager GitPython
 
+# Stamp identifying the baked dependency set. start.sh compares this against the
+# copy stored on the network volume; bump VENV_STAMP whenever the pip deps above
+# change so existing pods refresh their persisted venv automatically.
+ARG VENV_STAMP=2026-06-12.1
+RUN echo "$VENV_STAMP" > /opt/venv.stamp
+
 COPY src/start_script.sh /start_script.sh
 COPY src/start.sh /start.sh
 COPY src/update_ltx.sh /update_ltx.sh

@@ -17,11 +17,28 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 - The managed optional nodes include the Z-Image and LTX workflow helpers used on the daily storage, such as RES4LYF, rgthree, CRT-Nodes, Fill-Nodes, PromptRelay, CameraForensicRealism, and quantum spectral nodes.
 - A post-boot validation checks the critical LTX node classes through `/object_info`.
 
+## Persistent venv (no more reinstalling nodes on restart)
+
+The baked `/opt/venv` lives on the pod's ephemeral overlay filesystem, so every stop/start used to wipe any pip package that was not baked into the image — breaking every custom node installed on the network storage outside this template.
+
+The template now keeps the Python environment on the network volume:
+
+- On the first boot the baked `/opt/venv` is copied once to `/workspace/venv` (15 GB, slow the first time only).
+- `/opt/venv` is then replaced by a symlink to `/workspace/venv`, so every hard-coded `/opt/venv` path (pip, JupyterLab, ComfyUI Manager) transparently resolves to storage. From then on, **any package you install — including via ComfyUI Manager — persists across restarts.**
+- Right after the venv is first bootstrapped, a one-time heal installs `requirements.txt` for every node present under `custom_nodes/`, so nodes you added outside this template get their dependencies once. A constraints file pins `torch`/`torchvision`/`torchaudio`/`numpy` so node requirements cannot downgrade the core stack. This heal never runs again on later boots.
+- The image carries a stamp at `/opt/venv.stamp`; when you rebuild the image with changed baked deps (bump `VENV_STAMP`), existing pods refresh their persisted venv automatically on the next boot.
+
+The result: the template's only steady-state job is to boot the pod. ComfyUI, custom nodes, and their Python dependencies all live on the network storage.
+
 ## Important Environment Variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `COMFYUI_REF` | `v0.22.2` | Git ref/tag/branch for ComfyUI. |
+| `PERSIST_VENV` | `true` | Keep the Python venv on the network volume (`/workspace/venv`) so pip installs survive restarts. |
+| `VENV_PERSIST_DIR` | `$NETWORK_VOLUME/venv` | Where the persisted venv is stored. |
+| `REBUILD_VENV` | `false` | Force-refresh the persisted venv from the baked image on next boot. |
+| `HEAL_NODE_DEPS` | `true` | One-time install of every `custom_nodes/*/requirements.txt` when the venv is first bootstrapped. |
 | `UPDATE_ON_BOOT` | `false` | Update ComfyUI and managed custom nodes before launch. |
 | `INSTALL_REQUIREMENTS` | `auto` | Install requirements on first bootstrap or explicit update. Use `true` to force, `false` to skip. |
 | `RUNTIME_FIXES_ON_BOOT` | `auto` | Install small runtime fix packages on first bootstrap, explicit update, or when the LTX dependency sanity check fails. |
