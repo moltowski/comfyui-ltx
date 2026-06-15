@@ -36,11 +36,17 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging
 # resulting venv is byte-identical in intent and VENV_STAMP stays valid (no slow
 # venv re-copy on existing pods).
 
-# Layer 1: PyTorch (largest, changes rarely) + triton.
-RUN pip install --no-cache-dir --pre \
-        torch==2.12.0.dev20260407+cu128 \
-        torchvision==0.27.0.dev20260407+cu128 \
-        torchaudio==2.11.0.dev20260407+cu128 \
+# Layer 1: PyTorch (largest layer) + triton.
+# We intentionally do NOT pin exact nightly dates. The cu128 nightly index keeps
+# only the most recent build per package and purges older ones within weeks, so a
+# frozen date (the previous dev20260407 pin) eventually 404s and breaks the build
+# — that is exactly why the 2026-06-11 main build failed and `latest` stayed stuck
+# at the 2026-05-29 image. torchvision/torchaudio pin the exact matching torch
+# nightly and frequently lag torch by ~1 day, so we install torch first, then
+# vision/audio with --no-deps to avoid dragging in an already-purged torch pin.
+RUN pip install --no-cache-dir --pre torch \
+        --index-url https://download.pytorch.org/whl/nightly/cu128 && \
+    pip install --no-cache-dir --pre --no-deps torchvision torchaudio \
         --index-url https://download.pytorch.org/whl/nightly/cu128 && \
     pip install --no-cache-dir triton
 
