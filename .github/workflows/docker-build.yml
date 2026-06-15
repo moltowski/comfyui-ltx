@@ -44,8 +44,13 @@ jobs:
         images: |
           moltowski/comfyui-ltx
           ghcr.io/moltowski/comfyui-ltx
+        # Disable metadata-action's default `latest=auto`; we control `latest`
+        # explicitly with a GitHub ref expression so a test branch or tag build
+        # can NEVER overwrite the daily-driver `latest` image.
+        flavor: |
+          latest=false
         tags: |
-          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
           type=ref,event=branch
           type=ref,event=tag
 
