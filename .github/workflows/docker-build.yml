@@ -34,13 +34,27 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # `latest` is only published from the default branch (main). Pushing a test
+    # branch or a v* tag publishes a tag named after the ref WITHOUT touching the
+    # daily-driver `latest` image, so we can validate a new build before promoting.
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          moltowski/comfyui-ltx
+          ghcr.io/moltowski/comfyui-ltx
+        tags: |
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=ref,event=branch
+          type=ref,event=tag
+
     - name: Build and push
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        tags: |
-          moltowski/comfyui-ltx:latest
-          moltowski/comfyui-ltx:${{ github.ref_name }}
-          ghcr.io/moltowski/comfyui-ltx:latest
-          ghcr.io/moltowski/comfyui-ltx:${{ github.ref_name }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

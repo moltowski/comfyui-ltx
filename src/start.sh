@@ -9,9 +9,15 @@ NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
 COMFY="$NETWORK_VOLUME/ComfyUI"
 CUSTOM_NODES="$COMFY/custom_nodes"
 COMFYUI_REF="${COMFYUI_REF:-v0.22.2}"
+
+# --- Boot policy --------------------------------------------------------------
+# Default = launch fast, touch nothing. Nodes and models already live on the
+# network volume; we do NOT update/clone/pip on a normal boot. Maintenance is
+# opt-in via /update_ltx.sh (or UPDATE_ON_BOOT=true for a one-off).
+FAST_BOOT="${FAST_BOOT:-true}"
 UPDATE_ON_BOOT="${UPDATE_ON_BOOT:-false}"
-INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-auto}"
-RUNTIME_FIXES_ON_BOOT="${RUNTIME_FIXES_ON_BOOT:-auto}"
+INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-false}"
+RUNTIME_FIXES_ON_BOOT="${RUNTIME_FIXES_ON_BOOT:-false}"
 VALIDATE_LTX_NODES="${VALIDATE_LTX_NODES:-true}"
 STRICT_LTX_VALIDATION="${STRICT_LTX_VALIDATION:-false}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-true}"
@@ -438,19 +444,45 @@ heal_node_deps() {
   log "One-time node dependency heal complete"
 }
 
-main() {
-  log "ComfyUI LTX template bootstrap"
-  log "Network volume: $NETWORK_VOLUME"
-  log "ComfyUI ref: $COMFYUI_REF"
-  log "Update on boot: $UPDATE_ON_BOOT"
-  log "Install requirements: $INSTALL_REQUIREMENTS"
-  log "Persist venv: $PERSIST_VENV ($VENV_PERSIST_DIR)"
+# Decide whether to skip every sync/update/fix step and just launch.
+# Fast path applies when: FAST_BOOT is on, ComfyUI already exists on the volume,
+# and we are not explicitly in update/maintenance mode.
+fast_boot_eligible() {
+  is_true "$FAST_BOOT" \
+    && [ -d "$COMFY/.git" ] \
+    && ! is_true "$UPDATE_ON_BOOT" \
+    && ! is_true "$MAINTENANCE_ONLY"
+}
 
-  persist_venv
+reconcile_environment() {
   ensure_comfyui
   ensure_custom_nodes
   install_runtime_fixes
   heal_node_deps
+}
+
+main() {
+  log "ComfyUI LTX template bootstrap"
+  log "Network volume: $NETWORK_VOLUME"
+  log "ComfyUI ref: $COMFYUI_REF"
+  log "Fast boot: $FAST_BOOT  Update on boot: $UPDATE_ON_BOOT  Maintenance only: $MAINTENANCE_ONLY"
+  log "Install requirements: $INSTALL_REQUIREMENTS  Runtime fixes: $RUNTIME_FIXES_ON_BOOT"
+  log "Persist venv: $PERSIST_VENV ($VENV_PERSIST_DIR)"
+
+  # Always needed (fast on warm pods: just a symlink). On a brand-new volume this
+  # copies the baked venv once, then it persists.
+  persist_venv
+
+  if fast_boot_eligible; then
+    log "FAST_BOOT: ComfyUI already present on the volume -> skipping all git/pip/node-update/fix steps and launching directly."
+    log "          (run /update_ltx.sh, or set UPDATE_ON_BOOT=true, when you actually want to update.)"
+  else
+    if is_true "$FAST_BOOT" && [ ! -d "$COMFY/.git" ]; then
+      log "FAST_BOOT requested but no ComfyUI on the volume yet -> running one-time bootstrap."
+    fi
+    reconcile_environment
+  fi
+
   clean_non_nodes
 
   if is_true "$MAINTENANCE_ONLY"; then

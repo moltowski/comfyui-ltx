@@ -21,6 +21,7 @@ if [ "${STOP_COMFY_FOR_UPDATE:-true}" = "true" ]; then
   pkill -f "$COMFY/main.py" 2>/dev/null || true
 fi
 
+export FAST_BOOT=false
 export UPDATE_ON_BOOT=true
 export INSTALL_REQUIREMENTS=true
 export RUNTIME_FIXES_ON_BOOT=true

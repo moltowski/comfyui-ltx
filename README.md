@@ -10,10 +10,10 @@ This image intentionally does not bake model weights or a full ComfyUI workspace
 - `/workspace/ComfyUI/input` and `/workspace/ComfyUI/output` are protected user data and are never deleted or modified by the bootstrap.
 - The default ComfyUI ref is `v0.22.2`, matching the known-good pod state from May 24, 2026.
 - If `/workspace/ComfyUI` is missing, the template bootstraps ComfyUI and the managed LTX nodes.
-- If `/workspace/ComfyUI` already exists, the template starts it as-is by default.
+- If `/workspace/ComfyUI` already exists, `FAST_BOOT=true` (default) launches it directly and skips every git / pip / node-update / runtime-fix step — the fastest possible boot, and nothing on storage is touched.
 - LTX custom nodes are updated only when `UPDATE_ON_BOOT=true` or when running `/update_ltx.sh`.
-- Python requirements are installed for first bootstrap, explicit updates, or when `INSTALL_REQUIREMENTS=true`.
-- Fast boot still performs a tiny dependency sanity check. If core ComfyUI, ComfyUI Manager, or LTX runtime packages are missing, it installs only what is needed instead of starting a broken server.
+- Python requirements are installed only on first bootstrap, explicit updates, or when `INSTALL_REQUIREMENTS=true` (default is now `false`, never `auto`).
+- Runtime dependency fixes run only on first bootstrap, explicit updates, or when `RUNTIME_FIXES_ON_BOOT=true` (default is now `false`). The fully-baked image venv already provides them, so a normal boot never needs them.
 - The managed optional nodes include the Z-Image and LTX workflow helpers used on the daily storage, such as RES4LYF, rgthree, CRT-Nodes, Fill-Nodes, PromptRelay, CameraForensicRealism, and quantum spectral nodes.
 - A post-boot validation checks the critical LTX node classes through `/object_info`.
 
@@ -34,14 +34,15 @@ The result: the template's only steady-state job is to boot the pod. ComfyUI, cu
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `FAST_BOOT` | `true` | When `/workspace/ComfyUI` exists, skip all git/pip/node-update/fix steps and launch directly. Set `false` to force the reconcile path. |
 | `COMFYUI_REF` | `v0.22.2` | Git ref/tag/branch for ComfyUI. |
 | `PERSIST_VENV` | `true` | Keep the Python venv on the network volume (`/workspace/venv`) so pip installs survive restarts. |
 | `VENV_PERSIST_DIR` | `$NETWORK_VOLUME/venv` | Where the persisted venv is stored. |
 | `REBUILD_VENV` | `false` | Force-refresh the persisted venv from the baked image on next boot. |
 | `HEAL_NODE_DEPS` | `true` | One-time install of every `custom_nodes/*/requirements.txt` when the venv is first bootstrapped. |
 | `UPDATE_ON_BOOT` | `false` | Update ComfyUI and managed custom nodes before launch. |
-| `INSTALL_REQUIREMENTS` | `auto` | Install requirements on first bootstrap or explicit update. Use `true` to force, `false` to skip. |
-| `RUNTIME_FIXES_ON_BOOT` | `auto` | Install small runtime fix packages on first bootstrap, explicit update, or when the LTX dependency sanity check fails. |
+| `INSTALL_REQUIREMENTS` | `false` | Install requirements on first bootstrap or explicit update. Use `true` to force, `auto` to restore the old probe-based behavior. |
+| `RUNTIME_FIXES_ON_BOOT` | `false` | Install small runtime fix packages. Use `true` to force, `auto` to install only when the LTX dependency check fails. |
 | `VALIDATE_LTX_NODES` | `true` | Check critical node availability after startup. |
 | `STRICT_LTX_VALIDATION` | `false` | Fail the pod when validation is missing a critical LTX node. |
 | `ENABLE_MANAGER` | `true` | Add `--enable-manager` to ComfyUI launch. |
@@ -68,12 +69,18 @@ That stops ComfyUI, updates ComfyUI and the managed LTX nodes, installs requirem
 
 ## Docker
 
-The GitHub Action publishes:
+The dependency install is split into several image layers (PyTorch / ComfyUI core / LTX node deps / Jupyter) instead of one ~7 GB layer. The Docker daemon pulls up to three layers in parallel, so cold pulls on the few hosts pinned by the network volume are much faster, and changing one dependency group only rebuilds/repushes that layer.
+
+The GitHub Action publishes to both Docker Hub and GHCR:
 
 ```text
-moltowski/comfyui-ltx:latest
+moltowski/comfyui-ltx:latest        # ONLY from the main branch
 moltowski/comfyui-ltx:<branch-or-tag>
+ghcr.io/moltowski/comfyui-ltx:latest
+ghcr.io/moltowski/comfyui-ltx:<branch-or-tag>
 ```
+
+`latest` is published **only from `main`**. Pushing a test branch (e.g. `fast-deploy`) or a `v*` tag publishes an image tagged after that ref **without overwriting `latest`**, so a new build can be validated on a throwaway pod before being promoted. Point the RunPod template at `ghcr.io/moltowski/comfyui-ltx:fast-deploy` to test, then merge to `main` to promote to `latest`.
 
 ## RunPod Ports
 
