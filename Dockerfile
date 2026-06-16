@@ -36,19 +36,22 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging
 # resulting venv is byte-identical in intent and VENV_STAMP stays valid (no slow
 # venv re-copy on existing pods).
 
-# Layer 1: PyTorch (largest layer) + triton.
-# We intentionally do NOT pin exact nightly dates. The cu128 nightly index keeps
-# only the most recent build per package and purges older ones within weeks, so a
-# frozen date (the previous dev20260407 pin) eventually 404s and breaks the build
-# — that is exactly why the 2026-06-11 main build failed and `latest` stayed stuck
-# at the 2026-05-29 image. torchvision/torchaudio pin the exact matching torch
-# nightly and frequently lag torch by ~1 day, so we install torch first, then
-# vision/audio with --no-deps to avoid dragging in an already-purged torch pin.
-RUN pip install --no-cache-dir --pre torch \
-        --index-url https://download.pytorch.org/whl/nightly/cu128 && \
-    pip install --no-cache-dir --pre --no-deps torchvision torchaudio \
-        --index-url https://download.pytorch.org/whl/nightly/cu128 && \
-    pip install --no-cache-dir triton
+# Layer 1: PyTorch trio (largest layer) + triton.
+# Pin a CONSISTENT stable cu128 trio. Nightly proved unusable here: exact dates
+# get purged within weeks (the old dev20260407 pin 404'd -> the 2026-06-11 build
+# failed and `latest` stayed stuck at the 2026-05-29 image), torch/vision/audio
+# fall out of sync on the index (no installable matching set), and decoupling them
+# with --no-deps let the later PyPI layers downgrade torch to stable while
+# torchaudio stayed nightly -> ABI crash at runtime (torchaudio: undefined symbol
+# torch_dtype_float4_e2m1fn_x2, ComfyUI never starts). torch 2.10.0+cu128 is
+# verified on the RTX 5090 and runs the LTX stack end to end (HTTP 200). The
+# constraints file + PIP_CONSTRAINT lock the trio so no later layer can swap it.
+RUN pip install --no-cache-dir \
+        torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 \
+        --index-url https://download.pytorch.org/whl/cu128 && \
+    pip install --no-cache-dir triton && \
+    printf 'torch==2.10.0\ntorchvision==0.25.0\ntorchaudio==2.10.0\n' > /opt/torch-constraints.txt
+ENV PIP_CONSTRAINT=/opt/torch-constraints.txt
 
 # Layer 2: ComfyUI core ecosystem + frequently-needed runtime deps.
 RUN pip install --no-cache-dir \
