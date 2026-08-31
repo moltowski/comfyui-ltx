@@ -1,20 +1,30 @@
 # folder	url	ref	required
+# --- Shared + all-family prod set (WAN 2.2 + MiniMax H3 + Krea/FinePorn) --------
+# MiniMax H3 nodes ship in ComfyUI core (>=0.34.2), so no custom node is needed
+# for them. Krea/FinePorn are checkpoints (no dedicated node). WAN 2.2 video needs
+# WanVideoWrapper + KJNodes. Easy-Use is required by the delivered Krea workflow.
 ComfyUI-KJNodes	https://github.com/kijai/ComfyUI-KJNodes.git	main	true
-ComfyUI-LTXVideo	https://github.com/Lightricks/ComfyUI-LTXVideo.git	master	true
-WhatDreamsCost-ComfyUI	https://github.com/WhatDreamscost/WhatDreamsCost-ComfyUI.git	main	true
+ComfyUI-WanVideoWrapper	https://github.com/kijai/ComfyUI-WanVideoWrapper.git	main	true
+ComfyUI-Easy-Use	https://github.com/yolain/ComfyUI-Easy-Use.git	main	true
 ComfyUI-Manager	https://github.com/ltdrdata/ComfyUI-Manager.git	main	true
 comfyui-videohelpersuite	https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git	main	true
 ComfyUI-GGUF	https://github.com/city96/ComfyUI-GGUF.git	main	true
-ComfyUI-MelBandRoFormer	https://github.com/kijai/ComfyUI-MelBandRoFormer.git	main	true
-Listhelper	https://github.com/dseditor/ComfyUI-ListHelper.git	main	true
-RES4LYF	https://github.com/ClownsharkBatwing/RES4LYF.git	main	false
-rgthree-comfy	https://github.com/rgthree/rgthree-comfy.git	main	false
-crt-nodes	https://github.com/PGCRT/CRT-Nodes.git	main	false
+RES4LYF	https://github.com/ClownsharkBatwing/RES4LYF.git	main	true
+rgthree-comfy	https://github.com/rgthree/rgthree-comfy.git	main	true
+# --- Optional helpers (kept from the prior set; trim once validated on a pod) ---
+# Monkey realism nodes used by the prod Krea pipeline:
 ComfyUI-CameraForensicRealism	https://github.com/MONKEYFOREVER2/ComfyUI-CameraForensicRealism.git	master	false
 comfyui-quantum-spectral-nodes	https://github.com/MONKEYFOREVER2/comfyui-quantum-spectral-nodes.git	main	false
+# Generic utilities (demoted from required; confirm against real workflows):
+WhatDreamsCost-ComfyUI	https://github.com/WhatDreamscost/WhatDreamsCost-ComfyUI.git	main	false
+Listhelper	https://github.com/dseditor/ComfyUI-ListHelper.git	main	false
+crt-nodes	https://github.com/PGCRT/CRT-Nodes.git	main	false
 comfyui_fill-nodes	https://github.com/filliptm/ComfyUI_Fill-Nodes.git	main	false
 ComfyUI-PromptRelay	https://github.com/kijai/ComfyUI-PromptRelay.git	main	false
 ComfyUI-K3NK-ComfyUI-Nodes	https://github.com/K3NK3/ComfyUI-K3NK-ComfyUI-Nodes.git	main	false
 ComfyUI_tinyterraNodes	https://github.com/TinyTerra/ComfyUI_tinyterraNodes.git	main	false
 comfyui-fofr-toolkit	https://github.com/fofr/comfyui-fofr-toolkit.git	main	false
 Comfyui_TTP_Toolset	https://github.com/TTPlanetPig/Comfyui_TTP_Toolset.git	main	false
+# --- Removed (LTX-only; prod does not serve LTX) --------------------------------
+# ComfyUI-LTXVideo (Lightricks)  -- LTX video nodes
+# ComfyUI-MelBandRoFormer (kijai) -- LTX audio stem separation
