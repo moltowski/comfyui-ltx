@@ -8,18 +8,19 @@ export GIT_TERMINAL_PROMPT=0
 NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
 COMFY="$NETWORK_VOLUME/ComfyUI"
 CUSTOM_NODES="$COMFY/custom_nodes"
-COMFYUI_REF="${COMFYUI_REF:-v0.22.2}"
+COMFYUI_REF="${COMFYUI_REF:-v0.34.2}"
 
 # --- Boot policy --------------------------------------------------------------
 # Default = launch fast, touch nothing. Nodes and models already live on the
 # network volume; we do NOT update/clone/pip on a normal boot. Maintenance is
-# opt-in via /update_ltx.sh (or UPDATE_ON_BOOT=true for a one-off).
+# opt-in via /update.sh (or UPDATE_ON_BOOT=true for a one-off).
 FAST_BOOT="${FAST_BOOT:-true}"
 UPDATE_ON_BOOT="${UPDATE_ON_BOOT:-false}"
 INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-false}"
 RUNTIME_FIXES_ON_BOOT="${RUNTIME_FIXES_ON_BOOT:-false}"
-VALIDATE_LTX_NODES="${VALIDATE_LTX_NODES:-true}"
-STRICT_LTX_VALIDATION="${STRICT_LTX_VALIDATION:-false}"
+# Back-compat: honour the old VALIDATE_LTX_NODES / STRICT_LTX_VALIDATION names if set.
+VALIDATE_NODES="${VALIDATE_NODES:-${VALIDATE_LTX_NODES:-true}}"
+STRICT_VALIDATION="${STRICT_VALIDATION:-${STRICT_LTX_VALIDATION:-false}}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-true}"
 ENABLE_MANAGER_LEGACY_UI="${ENABLE_MANAGER_LEGACY_UI:-true}"
 USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-true}"
@@ -116,7 +117,7 @@ for mod in mods:
 PY
 }
 
-ltx_runtime_dependencies_available() {
+runtime_dependencies_available() {
   "$PY" - <<'PY' >/dev/null 2>&1
 mods = [
     "rotary_embedding_torch",
@@ -145,11 +146,11 @@ should_run_runtime_fixes() {
     true|TRUE|1|yes|YES|y|Y) return 0 ;;
     false|FALSE|0|no|NO|n|N) return 1 ;;
     auto|AUTO|"")
-      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS" || ! ltx_runtime_dependencies_available
+      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS" || ! runtime_dependencies_available
       ;;
     *)
       log "Unknown RUNTIME_FIXES_ON_BOOT=$RUNTIME_FIXES_ON_BOOT; treating as auto."
-      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS" || ! ltx_runtime_dependencies_available
+      is_true "$UPDATE_ON_BOOT" || is_true "$BOOTSTRAPPED_COMFYUI" || is_true "$INSTALL_REQUIREMENTS" || ! runtime_dependencies_available
       ;;
   esac
 }
@@ -255,11 +256,11 @@ ensure_custom_nodes() {
 
 install_runtime_fixes() {
   if ! should_run_runtime_fixes; then
-    log "Skipping LTX runtime dependency fixes"
+    log "Skipping custom-node runtime dependency fixes"
     return 0
   fi
 
-  log "Installing LTX runtime dependency fixes"
+  log "Installing custom-node runtime dependency fixes"
   run_pip_install sageattention reportlab rotary-embedding-torch "kornia==0.7.3" || true
   run_pip_install wget scikit-image ollama || true
   run_pip_install mediapipe || true
@@ -462,7 +463,7 @@ reconcile_environment() {
 }
 
 main() {
-  log "ComfyUI LTX template bootstrap"
+  log "ComfyUI prod template bootstrap"
   log "Network volume: $NETWORK_VOLUME"
   log "ComfyUI ref: $COMFYUI_REF"
   log "Fast boot: $FAST_BOOT  Update on boot: $UPDATE_ON_BOOT  Maintenance only: $MAINTENANCE_ONLY"
@@ -475,7 +476,7 @@ main() {
 
   if fast_boot_eligible; then
     log "FAST_BOOT: ComfyUI already present on the volume -> skipping all git/pip/node-update/fix steps and launching directly."
-    log "          (run /update_ltx.sh, or set UPDATE_ON_BOOT=true, when you actually want to update.)"
+    log "          (run /update.sh, or set UPDATE_ON_BOOT=true, when you actually want to update.)"
   else
     if is_true "$FAST_BOOT" && [ ! -d "$COMFY/.git" ]; then
       log "FAST_BOOT requested but no ComfyUI on the volume yet -> running one-time bootstrap."
@@ -495,14 +496,14 @@ main() {
   start_comfyui
   wait_for_comfyui
 
-  if is_true "$VALIDATE_LTX_NODES"; then
-    COMFYUI_URL="http://127.0.0.1:$COMFYUI_PORT" /validate_ltx.sh || {
-      log "LTX node validation failed. Check $LOG_FILE"
+  if is_true "$VALIDATE_NODES"; then
+    COMFYUI_URL="http://127.0.0.1:$COMFYUI_PORT" /validate.sh || {
+      log "Node validation failed. Check $LOG_FILE"
       tail -120 "$LOG_FILE" || true
-      if is_true "$STRICT_LTX_VALIDATION"; then
+      if is_true "$STRICT_VALIDATION"; then
         return 1
       fi
-      log "Continuing because STRICT_LTX_VALIDATION is false."
+      log "Continuing because STRICT_VALIDATION is false."
     }
   fi
 

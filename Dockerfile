@@ -1,7 +1,7 @@
 FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 
-LABEL org.opencontainers.image.source="https://github.com/moltowski/comfyui-ltx" \
-      org.opencontainers.image.description="ComfyUI LTX template (env only; ComfyUI/nodes/models live on the network volume)"
+LABEL org.opencontainers.image.source="https://github.com/moltowski/comfyui-prod" \
+      org.opencontainers.image.description="ComfyUI production runtime (env only; ComfyUI/nodes/models live on the network volume). Serves all model families off the volume."
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_PREFER_BINARY=1 \
@@ -44,7 +44,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging
 # with --no-deps let the later PyPI layers downgrade torch to stable while
 # torchaudio stayed nightly -> ABI crash at runtime (torchaudio: undefined symbol
 # torch_dtype_float4_e2m1fn_x2, ComfyUI never starts). torch 2.10.0+cu128 is
-# verified on the RTX 5090 and runs the LTX stack end to end (HTTP 200). The
+# verified on the RTX 5090 and runs the stack end to end (HTTP 200). The
 # constraints file + PIP_CONSTRAINT lock the trio so no later layer can swap it.
 RUN pip install --no-cache-dir \
         torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 \
@@ -65,7 +65,7 @@ RUN pip install --no-cache-dir \
         "pydantic~=2.0" "pydantic-settings~=2.0" PyOpenGL glfw \
         huggingface_hub gdown pyyaml requests tqdm
 
-# Layer 3: LTX / custom-node runtime deps (the other heavy group: mediapipe,
+# Layer 3: custom-node runtime deps (the other heavy group: mediapipe,
 # opencv, ultralytics, scikit-image). Pulled in parallel with layer 1.
 RUN pip install --no-cache-dir \
         sageattention reportlab rotary-embedding-torch wget scikit-image ollama \
@@ -88,10 +88,10 @@ RUN echo "$VENV_STAMP" > /opt/venv.stamp
 
 COPY src/start_script.sh /start_script.sh
 COPY src/start.sh /start.sh
-COPY src/update_ltx.sh /update_ltx.sh
-COPY src/validate_ltx.sh /validate_ltx.sh
+COPY src/update.sh /update.sh
+COPY src/validate.sh /validate.sh
 COPY src/custom_nodes.tsv /custom_nodes.tsv
 
-RUN chmod +x /start_script.sh /start.sh /update_ltx.sh /validate_ltx.sh
+RUN chmod +x /start_script.sh /start.sh /update.sh /validate.sh
 
 CMD ["/start_script.sh"]

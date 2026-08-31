@@ -3,7 +3,7 @@ name: Docker Build and Push
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
+    tags: [ 'v*', 'prod-*' ]
 
 permissions:
   contents: read
@@ -34,23 +34,30 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    # `latest` is only published from the default branch (main). Pushing a test
-    # branch or a v* tag publishes a tag named after the ref WITHOUT touching the
-    # daily-driver `latest` image, so we can validate a new build before promoting.
+    # Two protected pointers, both moved only on purpose:
+    #  - `latest`  = published ONLY from the default branch (main). A test branch
+    #    or a v* tag publishes a tag named after the ref WITHOUT touching it, so we
+    #    can validate a new build before promoting.
+    #  - `prod`    = the pinned image production runs. Published ONLY when a
+    #    `prod-*` git tag is pushed (e.g. `git tag prod-2026-08-31 && git push --tags`).
+    #    That same push also produces the immutable `prod-2026-08-31` tag via
+    #    type=ref, so `prod` is a moving pointer to a dated, reproducible build.
+    #    A routine push to main can NEVER move `prod`.
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: |
-          moltowski/comfyui-ltx
-          ghcr.io/moltowski/comfyui-ltx
-        # Disable metadata-action's default `latest=auto`; we control `latest`
-        # explicitly with a GitHub ref expression so a test branch or tag build
-        # can NEVER overwrite the daily-driver `latest` image.
+          moltowski/comfyui-prod
+          ghcr.io/moltowski/comfyui-prod
+        # Disable metadata-action's default `latest=auto`; we control `latest` and
+        # `prod` explicitly with GitHub ref expressions so no build can overwrite
+        # either pointer by accident.
         flavor: |
           latest=false
         tags: |
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+          type=raw,value=prod,enable=${{ startsWith(github.ref, 'refs/tags/prod-') }}
           type=ref,event=branch
           type=ref,event=tag
 
